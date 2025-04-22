@@ -1,73 +1,98 @@
 import random
 
-# --- Round Robin ---
+# --- Round Robin Load Balancer ---
 class RR:
-    def __init__(self, svrs): 
-        self.svrs, self.i = svrs, 0
-    def get(self):
-        s = self.svrs[self.i]
-        self.i = (self.i + 1) % len(self.svrs)
-        return s
+    def __init__(self, servers):
+        self.servers = servers
+        self.index = 0
 
-# --- Least Connections ---
+    def get(self):
+        server = self.servers[self.index]
+        self.index = (self.index + 1) % len(self.servers)
+        return server
+
+
+# --- Least Connections Load Balancer ---
 class LC:
-    def __init__(self, conns): 
-        self.c = conns
+    def __init__(self, connections):
+        self.connections = connections
 
     def get(self):
-        s = min(self.c, key=self.c.get)
-        self.c[s] += 1
-        return s
-    def release(self, s):
-        if self.c[s] > 0: self.c[s] -= 1
+        server = min(self.connections, key=self.connections.get)
+        self.connections[server] += 1
+        return server
 
-# --- Least Time ---
+    def release(self, server):
+        if self.connections[server] > 0:
+            self.connections[server] -= 1
+
+
+# --- Least Time Load Balancer ---
 class LT:
-    def __init__(self, times): self.t = times
+    def __init__(self, times):
+        self.times = times
+
     def get(self):
-        s = min(self.t, key=self.t.get)
-        self.t[s] += random.uniform(0.05, 0.2)
-        return s
+        server = min(self.times, key=self.times.get)
+        self.times[server] += random.uniform(0.05, 0.2)
+        return server
 
-# --- Hash Based ---
-def hash_lb(cid, svrs): return svrs[hash(cid) % len(svrs)]
 
-# --- Main ---
+# --- Hash Based Load Balancer ---
+def hash_lb(client_id, servers):
+    return servers[hash(client_id) % len(servers)]
+
+
+# --- Main Simulation ---
 def main():
-    print("1: RR\n2: LC\n3: LT\n4: Hash")
-    ch = input("Choose (1-4): ")
-    n = int(input("No. of servers: "))
-    svrs = [input(f"Server {i+1}: ") for i in range(n)]
+    print("Load Balancing Algorithms:")
+    print("1: Round Robin (RR)")
+    print("2: Least Connections (LC)")
+    print("3: Least Time (LT)")
+    print("4: Hash Based")
+    
+    choice = input("Choose algorithm (1-4): ")
+    n = int(input("Number of servers: "))
+    servers = [input(f"Server {i+1} name: ") for i in range(n)]
 
-    if ch == '1':
-        r = int(input("Requests: "))
-        obj = RR(svrs)
-        print("\n-- RR --")
-        for i in range(r): print(f"Req {i+1} → {obj.get()}")
+    if choice == '1':  # Round Robin
+        r = int(input("Number of requests: "))
+        obj = RR(servers)
+        print("\n--- Round Robin Allocation ---")
+        for i in range(r):
+            print(f"Request {i+1} → {obj.get()}")
 
-    elif ch == '2':
-        conn = {s: int(input(f"Connections for {s}: ")) for s in svrs}
-        r = int(input("Requests: "))
+    elif choice == '2':  # Least Connections
+        conn = {s: int(input(f"Initial connections on {s}: ")) for s in servers}
+        r = int(input("Number of incoming requests: "))
         obj = LC(conn)
-        print("\n-- LC --")
+        print("\n--- Least Connections Allocation ---")
         for i in range(r):
             s = obj.get()
-            print(f"Req {i+1} → {s}")
-            if random.random() > 0.5: obj.release(s)
+            print(f"Request {i+1} → {s}")
+            if random.random() > 0.5:
+                obj.release(s)
+                print(f"[Release] One connection from {s} closed.")
 
-    elif ch == '3':
-        t = {s: float(input(f"Time for {s}: ")) for s in svrs}
-        r = int(input("Requests: "))
-        obj = LT(t)
-        print("\n-- LT --")
-        for i in range(r): print(f"Req {i+1} → {obj.get()}")
+    elif choice == '3':  # Least Time
+        times = {s: float(input(f"Response time of {s} (in sec): ")) for s in servers}
+        r = int(input("Number of requests: "))
+        obj = LT(times)
+        print("\n--- Least Time Allocation ---")
+        for i in range(r):
+            print(f"Request {i+1} → {obj.get()}")
 
-    elif ch == '4':
-        r = int(input("Client requests: "))
-        cids = [input(f"Client ID {i+1}: ") for i in range(r)]
-        print("\n-- Hash --")
-        for cid in cids: print(f"{cid} → {hash_lb(cid, svrs)}")
+    elif choice == '4':  # Hash-Based
+        r = int(input("Number of client requests: "))
+        client_ids = [input(f"Client ID {i+1}: ") for i in range(r)]
+        print("\n--- Hash-Based Allocation ---")
+        for cid in client_ids:
+            print(f"Client {cid} → {hash_lb(cid, servers)}")
 
-    else: print("Invalid choice!")
+    else:
+        print("❌ Invalid choice!")
 
-main()
+
+# Run the simulation
+if __name__ == "__main__":
+    main()
